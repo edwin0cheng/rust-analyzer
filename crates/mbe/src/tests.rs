@@ -1993,29 +1993,3 @@ fn test_empty_comments() {
         &ExpandError::BindingError("expected Expr".into()),
     );
 }
-
-#[test]
-fn test_bench_expansion_only() {
-    let ra_fixture = r#"
-    macro_rules! m {
-        ($id:ident) => { let $id = 0; }
-    }
-"#;
-    let invocation = r#"m!(a)"#;
-
-    let definition_tt = parse_macro_to_tt(ra_fixture);
-
-    let source_file = ast::SourceFile::parse(invocation).tree();
-    let macro_invocation =
-        source_file.syntax().descendants().find_map(ast::MacroCall::cast).unwrap();
-    let (invocation_tt, _) = ast_to_token_tree(&macro_invocation.token_tree().unwrap())
-        .ok_or_else(|| ExpandError::ConversionError)
-        .unwrap();
-
-    let time = std::time::Instant::now();
-    let rules = MacroRules::parse(&definition_tt).unwrap();
-    for _ in 0..1000000 {
-        rules.expand(&invocation_tt).result().unwrap();
-    }
-    eprintln!("time used: {}ms", time.elapsed().as_millis());
-}
