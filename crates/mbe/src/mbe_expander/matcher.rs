@@ -14,29 +14,40 @@ use syntax::{SmolStr, SyntaxKind};
 use tt::buffer::{Cursor, TokenBuffer};
 
 impl Bindings {
+    fn slot_mut(&mut self, name: &SmolStr) -> Option<&mut Binding> {
+        self.slots.iter_mut().find_map(|(s, b)| if s == name { Some(b) } else { None })
+    }
+
+    fn insert(&mut self, name: &SmolStr, binding: Binding) {
+        match self.slot_mut(name) {
+            Some(slot) => *slot = binding,
+            None => {
+                self.slots.push((name.clone(), binding));
+            }
+        }
+    }
+
     fn push_optional(&mut self, name: &SmolStr) {
         // FIXME: Do we have a better way to represent an empty token ?
         // Insert an empty subtree for empty token
         let tt = tt::Subtree::default().into();
-        self.inner.insert(name.clone(), Binding::Fragment(Fragment::Tokens(tt)));
+        self.insert(name, Binding::Fragment(Fragment::Tokens(tt)));
     }
 
     fn push_empty(&mut self, name: &SmolStr) {
-        self.inner.insert(name.clone(), Binding::Empty);
+        self.insert(name, Binding::Empty);
     }
 
     fn push_nested(&mut self, idx: usize, nested: Bindings) -> Result<(), ExpandError> {
-        for (key, value) in nested.inner {
-            if !self.inner.contains_key(&key) {
-                self.inner.insert(key.clone(), Binding::Nested(Vec::new()));
-            }
-            match self.inner.get_mut(&key) {
+        for (key, value) in nested.slots.into_iter() {
+            match self.slot_mut(&key) {
                 Some(Binding::Nested(it)) => {
-                    // insert empty nested bindings before this one
-                    while it.len() < idx {
-                        it.push(Binding::Nested(vec![]));
-                    }
-                    it.push(value);
+                    push_aligned(it, value, idx);
+                }
+                None => {
+                    let mut it = vec![];
+                    push_aligned(&mut it, value, idx);
+                    self.slots.push((key.clone(), Binding::Nested(it)));
                 }
                 _ => {
                     return Err(ExpandError::BindingError(format!(
@@ -46,7 +57,15 @@ impl Bindings {
                 }
             }
         }
-        Ok(())
+        return Ok(());
+
+        fn push_aligned(binding: &mut Vec<Binding>, v: Binding, idx: usize) {
+            // insert empty nested bindings before this one
+            while binding.len() < idx {
+                binding.push(Binding::Nested(vec![]));
+            }
+            binding.push(v);
+        }
     }
 }
 
@@ -162,7 +181,7 @@ fn match_subtree(
                     match_meta_var(kind.as_str(), src);
                 match matched {
                     Some(fragment) => {
-                        res.bindings.inner.insert(name.clone(), Binding::Fragment(fragment));
+                        res.bindings.insert(name, Binding::Fragment(fragment));
                     }
                     None if match_err.is_none() => res.bindings.push_optional(name),
                     _ => {}

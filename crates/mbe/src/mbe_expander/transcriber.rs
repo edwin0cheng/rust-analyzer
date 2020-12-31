@@ -12,11 +12,15 @@ use crate::{
 
 impl Bindings {
     fn contains(&self, name: &str) -> bool {
-        self.inner.contains_key(name)
+        self.slots.iter().find(|&s| s.0 == name).is_some()
+    }
+
+    fn slot(&self, name: &str) -> Option<&Binding> {
+        self.slots.iter().find_map(|(s, b)| if s == name { Some(b) } else { None })
     }
 
     fn get(&self, name: &str, nesting: &mut [NestingState]) -> Result<&Fragment, ExpandError> {
-        let mut b = self.inner.get(name).ok_or_else(|| {
+        let mut b = self.slot(name).ok_or_else(|| {
             ExpandError::BindingError(format!("could not find binding `{}`", name))
         })?;
         for nesting_state in nesting.iter_mut() {
@@ -57,6 +61,7 @@ pub(super) fn transcribe(
     assert!(template.delimiter == None);
     let mut ctx = ExpandCtx { bindings: &bindings, nesting: Vec::new() };
     let mut arena: Vec<tt::TokenTree> = Vec::new();
+    arena.reserve(100);
     expand_subtree(&mut ctx, template, &mut arena)
 }
 

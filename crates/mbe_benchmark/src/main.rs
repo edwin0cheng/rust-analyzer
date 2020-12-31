@@ -1,5 +1,5 @@
-use mbe::{ExpandError, MacroRules, ast_to_token_tree, parse_to_token_tree};
-use syntax::{AstNode, ast};
+use mbe::{ast_to_token_tree, parse_to_token_tree, ExpandError, MacroRules};
+use syntax::{ast, AstNode};
 
 fn main() {
     bench_expansion_only();
@@ -22,9 +22,9 @@ fn bench_expansion_only() {
         .ok_or_else(|| ExpandError::ConversionError)
         .unwrap();
 
-    let time = std::time::Instant::now();
-    let rules = MacroRules::parse(&definition_tt).unwrap();
+    let time = std::time::Instant::now();    
     for _ in 0..1000000 {
+        let rules = MacroRules::parse(&definition_tt).unwrap();
         rules.expand(&invocation_tt).result().unwrap();
     }
     eprintln!("time used: {}ms", time.elapsed().as_millis());
@@ -33,17 +33,17 @@ fn bench_expansion_only() {
         let source_file = ast::SourceFile::parse(ra_fixture).ok().unwrap();
         let macro_definition =
             source_file.syntax().descendants().find_map(ast::MacroRules::cast).unwrap();
-    
-        let (definition_tt, _) = ast_to_token_tree(&macro_definition.token_tree().unwrap()).unwrap();
-    
+
+        let (definition_tt, _) =
+            ast_to_token_tree(&macro_definition.token_tree().unwrap()).unwrap();
+
         let parsed = parse_to_token_tree(
             &ra_fixture[macro_definition.token_tree().unwrap().syntax().text_range()],
         )
         .unwrap()
         .0;
         assert_eq!(definition_tt, parsed);
-    
+
         definition_tt
     }
 }
-

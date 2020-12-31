@@ -901,6 +901,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mbe_benchmark"
+version = "0.1.0"
+dependencies = [
+ "mbe",
+ "parser",
+ "syntax",
+ "tt",
+]
+
+[[package]]
 name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
